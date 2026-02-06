@@ -2,32 +2,48 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Review Sentiment Analyzer</title>
+    <title>Sentiment Analyzer Pro (Upload Support)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
-        .status { font-size: 0.8em; color: gray; margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; }
-        .review-box { border: 1px solid #ddd; padding: 20px; border-radius: 10px; min-height: 80px; margin-bottom: 20px; background: #fafafa; }
-        .result { padding: 15px; border-radius: 10px; text-align: center; font-weight: bold; display: none; margin-bottom: 20px; }
-        .POSITIVE { background: #e6ffed; color: #22c55e; border: 1px solid #22c55e; }
-        .NEGATIVE { background: #fff1f0; color: #cf1322; border: 1px solid #cf1322; }
-        .NEUTRAL { background: #f5f5f5; color: #666; border: 1px solid #ccc; }
-        button { width: 100%; padding: 15px; background: #1890ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
-        button:disabled { background: #ccc; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f9; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); width: 100%; max-width: 550px; }
+        h2 { color: #1e293b; margin-top: 0; text-align: center; }
+        
+        .status-badge { font-size: 0.85em; padding: 8px 12px; background: #f8fafc; border-radius: 6px; color: #64748b; border: 1px solid #e2e8f0; margin-bottom: 20px; text-align: center; }
+        
+        .upload-section { border: 2px dashed #cbd5e1; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; transition: 0.3s; }
+        .upload-section:hover { border-color: #3b82f6; background: #f0f7ff; }
+        input[type="file"] { margin-top: 10px; font-size: 0.9em; width: 100%; }
+
+        .review-box { background: #ffffff; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; min-height: 60px; margin-bottom: 20px; color: #334155; line-height: 1.5; font-style: italic; }
+        
+        .result { padding: 15px; border-radius: 8px; text-align: center; font-weight: 700; display: none; margin-bottom: 20px; animation: fadeIn 0.5s; }
+        .POSITIVE { background: #dcfce7; color: #15803d; border: 1px solid #15803d; }
+        .NEGATIVE { background: #fee2e2; color: #b91c1c; border: 1px solid #b91c1c; }
+        
+        button { width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; transition: 0.2s; }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>Review Sentiment Analyzer</h2>
-        <div id="status" class="status">Загрузка модели...</div>
+        <div id="status" class="status-badge">Инициализация нейросети...</div>
         
-        <div class="review-box" id="review-display">Отзыв появится здесь...</div>
+        <div class="upload-section">
+            <label style="font-weight: 600; font-size: 0.9em;">📁 Шаг 1: Загрузите TSV или CSV файл</label>
+            <input type="file" id="file-upload" accept=".tsv,.csv">
+        </div>
+
+        <div class="review-box" id="review-display">После загрузки файла нажмите кнопку ниже, чтобы выбрать случайный отзыв.</div>
         
         <div id="result-box" class="result"></div>
 
-        <button id="btn" disabled>Analyze Random Review</button>
+        <button id="btn" disabled>Шаг 2: Анализировать случайный отзыв</button>
     </div>
     <script type="module" src="app.js"></script>
 </body>
