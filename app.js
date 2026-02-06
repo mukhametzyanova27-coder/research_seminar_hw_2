@@ -6,38 +6,62 @@ let reviews = [];
 let classifier;
 
 const btn = document.getElementById('btn');
+const fileUpload = document.getElementById('file-upload');
 const status = document.getElementById('status');
 const reviewDisplay = document.getElementById('review-display');
 const resultBox = document.getElementById('result-box');
 
-// 1. Загрузка нейросети и данных
-async function init() {
+// 1. Инициализация модели при загрузке страницы
+async function initModel() {
     try {
-        // Загрузка модели
+        status.textContent = "⏳ Загрузка нейросети (около 30Мб)...";
         classifier = await pipeline("text-classification", "Xenova/distilbert-base-uncased-finetuned-sst-2-english");
-        status.textContent = "Модель готова! Загрузка отзывов...";
-
-        // Загрузка TSV
-        const resp = await fetch('reviews_test.tsv');
-        const text = await resp.text();
-        
-        Papa.parse(text, {
-            header: true,
-            delimiter: "\t",
-            complete: (res) => {
-                reviews = res.data.map(r => r.text).filter(t => t);
-                status.textContent = "Всё готово. Можно анализировать!";
-                btn.disabled = false;
-            }
-        });
+        status.textContent = "✅ Модель готова. Теперь загрузите файл с данными.";
     } catch (e) {
-        status.textContent = "Ошибка: " + e.message;
+        status.textContent = "❌ Ошибка загрузки модели: " + e.message;
+        console.error(e);
     }
 }
 
-// 2. Функция логирования в Google Таблицу
-async function logClick(review, result) {
-    const data = {
+// 2. Обработка загрузки файла
+fileUpload.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    status.textContent = "⏳ Чтение файла...";
+
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+            // Пытаемся найти колонку с текстом (может называться text, Review, body и т.д.)
+            const headers = results.meta.fields;
+            const textField = headers.find(h => 
+                ['text', 'review', 'body', 'content', 'message'].includes(h.toLowerCase())
+            ) || headers[0]; // Если не нашли, берем первую колонку
+
+            reviews = results.data
+                .map(row => row[textField])
+                .filter(val => val && val.toString().trim().length > 0);
+
+            if (reviews.length > 0) {
+                status.textContent = `✅ Загружено отзывов: ${reviews.length} (колонка: "${textField}")`;
+                btn.disabled = false;
+                reviewDisplay.textContent = "Файл загружен успешно. Нажмите кнопку анализа.";
+            } else {
+                status.textContent = "❌ В файле не найдены текстовые данные.";
+                btn.disabled = true;
+            }
+        },
+        error: (err) => {
+            status.textContent = "❌ Ошибка парсинга: " + err.message;
+        }
+    });
+};
+
+// 3. Функция отправки логов в Google Таблицу
+async function logToGoogle(review, result) {
+    const logData = {
         ts_iso: new Date().toISOString(),
         review: review,
         sentiment: `${result.label} (${Math.round(result.score * 100)}%)`,
@@ -48,32 +72,50 @@ async function logClick(review, result) {
         }
     };
 
+    // Отправляем через fetch (режим no-cors для Google Scripts)
     fetch(SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
-        body: JSON.stringify(data)
+        cache: "no-cache",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(logData)
     });
 }
 
-// 3. Обработка клика
+// 4. Логика кнопки анализа
 btn.onclick = async () => {
+    if (!reviews.length) return;
+
     btn.disabled = true;
-    const randomReview = reviews[Math.floor(Math.random() * reviews.length)];
-    reviewDisplay.textContent = "Анализирую...";
+    resultBox.style.display = 'none';
     
-    const output = await classifier(randomReview);
-    const res = output[0];
-
-    // Показываем результат
-    reviewDisplay.textContent = randomReview;
-    resultBox.textContent = `${res.label === 'POSITIVE' ? '👍' : '👎'} ${res.label} (${Math.round(res.score * 100)}%)`;
-    resultBox.className = `result ${res.label}`;
-    resultBox.style.display = 'block';
-
-    // Отправляем данные в таблицу
-    await logClick(randomReview, res);
+    // Выбираем случайный текст
+    const randomIndex = Math.floor(Math.random() * reviews.length);
+    const selectedText = reviews[randomIndex];
     
-    btn.disabled = false;
+    reviewDisplay.textContent = "🤖 Анализирую текст...";
+
+    try {
+        // Запуск нейросети
+        const output = await classifier(selectedText);
+        const prediction = output[0];
+
+        // Отображение текста и результата
+        reviewDisplay.textContent = `"${selectedText}"`;
+        resultBox.textContent = `${prediction.label === 'POSITIVE' ? '👍' : '👎'} ${prediction.label} (${Math.round(prediction.score * 100)}%)`;
+        resultBox.className = `result ${prediction.label}`;
+        resultBox.style.display = 'block';
+
+        // Логирование клика
+        await logToGoogle(selectedText, prediction);
+
+    } catch (err) {
+        reviewDisplay.textContent = "❌ Ошибка при анализе.";
+        console.error(err);
+    } finally {
+        btn.disabled = false;
+    }
 };
 
-init();
+// Запуск
+initModel();
